@@ -62,6 +62,18 @@ type UsageService struct {
 	authCacheInvalidator APIKeyAuthCacheInvalidator
 }
 
+type publicLeaderboardRepository interface {
+	GetPublicLeaderboard(ctx context.Context, startTime, endTime time.Time, metric string, minimumTokens, minimumRequests int64, includeUserIDs, excludeUserIDs []int64, limit int, currentUserID int64) ([]usagestats.PublicLeaderboardItem, error)
+}
+
+func (s *UsageService) GetPublicLeaderboard(ctx context.Context, startTime, endTime time.Time, metric string, minimumTokens, minimumRequests int64, includeUserIDs, excludeUserIDs []int64, limit int, currentUserID int64) ([]usagestats.PublicLeaderboardItem, error) {
+	repo, ok := s.usageRepo.(publicLeaderboardRepository)
+	if !ok {
+		return nil, errors.New("public leaderboard is not supported by usage repository")
+	}
+	return repo.GetPublicLeaderboard(ctx, startTime, endTime, metric, minimumTokens, minimumRequests, includeUserIDs, excludeUserIDs, limit, currentUserID)
+}
+
 // NewUsageService 创建使用统计服务实例
 func NewUsageService(usageRepo UsageLogRepository, userRepo UserRepository, entClient *dbent.Client, authCacheInvalidator APIKeyAuthCacheInvalidator) *UsageService {
 	return &UsageService{

@@ -485,6 +485,7 @@ export interface SystemSettings {
   home_content: string;
   compact_home_enabled: boolean;
   hide_ccs_import_button: boolean;
+  purchase_subscription_enabled: boolean;
   table_default_page_size: number;
   table_page_size_options: number[];
   backend_mode_enabled: boolean;
@@ -758,6 +759,7 @@ export interface UpdateSettingsRequest {
   registration_email_suffix_whitelist?: string[];
   registration_email_domain_quota_enabled?: boolean;
   promo_code_enabled?: boolean;
+  purchase_subscription_enabled?: boolean;
   password_reset_enabled?: boolean;
   frontend_url?: string;
   invitation_code_enabled?: boolean;

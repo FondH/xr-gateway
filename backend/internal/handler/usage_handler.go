@@ -52,6 +52,27 @@ type UsageHandler struct {
 	settingService *service.SettingService
 }
 
+type publicLeaderboardConfig struct {
+	Enabled               bool   `json:"enabled"`
+	Title                 string `json:"title"`
+	Period                string `json:"period"`
+	Metric                string `json:"metric"`
+	Limit                 int    `json:"limit"`
+	ShowPlatformBreakdown bool   `json:"show_platform_breakdown"`
+}
+
+type publicLeaderboardItem struct {
+	Rank           int64  `json:"rank"`
+	DisplayName    string `json:"display_name"`
+	IsMe           bool   `json:"is_me"`
+	Requests       int64  `json:"requests"`
+	Tokens         int64  `json:"tokens"`
+	OpenAIRequests int64  `json:"openai_requests,omitempty"`
+	OpenAITokens   int64  `json:"openai_tokens,omitempty"`
+	ClaudeRequests int64  `json:"claude_requests,omitempty"`
+	ClaudeTokens   int64  `json:"claude_tokens,omitempty"`
+}
+
 // NewUsageHandler creates a new UsageHandler
 func NewUsageHandler(
 	usageService *service.UsageService,
@@ -65,6 +86,95 @@ func NewUsageHandler(
 		opsService:     opsService,
 		settingService: settingService,
 	}
+}
+
+// GetUserLeaderboard returns privacy-safe ranking data for the authenticated user.
+func (h *UsageHandler) GetUserLeaderboard(c *gin.Context) {
+	subject, ok := middleware2.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+	settings, err := h.settingService.GetUserLeaderboardSettings(c.Request.Context())
+	if err != nil {
+		response.Error(c, http.StatusInternalServerError, "Failed to load leaderboard settings")
+		return
+	}
+	if !settings.Enabled {
+		response.Forbidden(c, "Leaderboard is disabled")
+		return
+	}
+	now := timezone.NowInUserLocation(c.Query("timezone"))
+	start := timezone.StartOfDayInUserLocation(now, c.Query("timezone"))
+	if settings.Period == "week" {
+		start = start.AddDate(0, 0, -6)
+	}
+	end := timezone.StartOfDayInUserLocation(now.AddDate(0, 0, 1), c.Query("timezone"))
+	items, err := h.usageService.GetPublicLeaderboard(c.Request.Context(), start, end, settings.Metric, settings.MinimumTokens, settings.MinimumRequests, settings.IncludeUserIDs, settings.ExcludeUserIDs, settings.Limit, subject.UserID)
+	if err != nil {
+		response.Error(c, http.StatusInternalServerError, "Failed to load leaderboard")
+		return
+	}
+	result := make([]publicLeaderboardItem, 0, len(items))
+	var myRank *publicLeaderboardItem
+	for _, item := range items {
+		isMe := item.UserID == subject.UserID
+		out := publicLeaderboardItem{Rank: item.Rank, DisplayName: maskLeaderboardName(item.Username, isMe), IsMe: isMe, Requests: item.Requests, Tokens: item.Tokens}
+		if settings.ShowPlatformBreakdown {
+			out.OpenAIRequests, out.OpenAITokens, out.ClaudeRequests, out.ClaudeTokens = item.OpenAIRequests, item.OpenAITokens, item.ClaudeRequests, item.ClaudeTokens
+		}
+		if isMe {
+			copy := out
+			myRank = &copy
+		}
+		if item.Rank <= int64(settings.Limit) {
+			result = append(result, out)
+		}
+	}
+	response.Success(c, gin.H{"config": leaderboardPublicConfig(settings), "items": result, "my_rank": myRank, "start_date": start.Format("2006-01-02"), "end_date": end.Add(-24 * time.Hour).Format("2006-01-02")})
+}
+
+// GetUserLeaderboardConfig exposes the complete configuration to administrators.
+func (h *UsageHandler) GetUserLeaderboardConfig(c *gin.Context) {
+	settings, err := h.settingService.GetUserLeaderboardSettings(c.Request.Context())
+	if err != nil {
+		response.Error(c, http.StatusInternalServerError, "Failed to load leaderboard settings")
+		return
+	}
+	response.Success(c, settings)
+}
+
+// UpdateUserLeaderboardConfig saves administrator-only leaderboard controls.
+func (h *UsageHandler) UpdateUserLeaderboardConfig(c *gin.Context) {
+	var settings service.UserLeaderboardSettings
+	if err := c.ShouldBindJSON(&settings); err != nil {
+		response.BadRequest(c, "Invalid leaderboard settings: "+err.Error())
+		return
+	}
+	updated, err := h.settingService.SetUserLeaderboardSettings(c.Request.Context(), settings)
+	if err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+	response.Success(c, updated)
+}
+
+func leaderboardPublicConfig(settings service.UserLeaderboardSettings) publicLeaderboardConfig {
+	return publicLeaderboardConfig{Enabled: settings.Enabled, Title: settings.Title, Period: settings.Period, Metric: settings.Metric, Limit: settings.Limit, ShowPlatformBreakdown: settings.ShowPlatformBreakdown}
+}
+
+func maskLeaderboardName(name string, isMe bool) string {
+	if isMe {
+		return "我"
+	}
+	value := []rune(strings.TrimSpace(name))
+	if len(value) == 0 {
+		return "匿名用户"
+	}
+	if len(value) == 1 {
+		return string(value) + "***"
+	}
+	return string(value[:2]) + "***"
 }
 
 func (h *UsageHandler) parseUserUsageFilters(c *gin.Context, requireRange bool) (*userUsageFilters, bool) {

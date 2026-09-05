@@ -124,6 +124,16 @@ export const FeatureFlags = {
     mode: 'opt-out',
     label: 'Payment',
   }),
+  redeem: defineFlag({
+    key: 'promo_code_enabled',
+    mode: 'opt-out',
+    label: 'Redeem',
+  }),
+  subscriptions: defineFlag({
+    key: 'purchase_subscription_enabled',
+    mode: 'opt-out',
+    label: 'Subscriptions',
+  }),
   riskControl: defineFlag({
     key: 'risk_control_enabled',
     mode: 'opt-in',

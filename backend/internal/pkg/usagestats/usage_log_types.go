@@ -148,12 +148,16 @@ type UserUsageTrendPoint struct {
 
 // UserSpendingRankingItem represents a user spending ranking row.
 type UserSpendingRankingItem struct {
-	UserID     int64   `json:"user_id"`
-	Email      string  `json:"email"`
-	Username   string  `json:"username"`
-	ActualCost float64 `json:"actual_cost"` // 实际扣除
-	Requests   int64   `json:"requests"`
-	Tokens     int64   `json:"tokens"`
+	UserID         int64   `json:"user_id"`
+	Email          string  `json:"email"`
+	Username       string  `json:"username"`
+	ActualCost     float64 `json:"actual_cost"` // 实际扣除
+	Requests       int64   `json:"requests"`
+	Tokens         int64   `json:"tokens"`
+	OpenAIRequests int64   `json:"openai_requests"`
+	OpenAITokens   int64   `json:"openai_tokens"`
+	ClaudeRequests int64   `json:"claude_requests"`
+	ClaudeTokens   int64   `json:"claude_tokens"`
 }
 
 // UserSpendingRankingResponse represents ranking rows plus total spend for the time range.
@@ -162,6 +166,19 @@ type UserSpendingRankingResponse struct {
 	TotalActualCost float64                   `json:"total_actual_cost"`
 	TotalRequests   int64                     `json:"total_requests"`
 	TotalTokens     int64                     `json:"total_tokens"`
+}
+
+// PublicLeaderboardItem is deliberately privacy-safe for the user panel.
+type PublicLeaderboardItem struct {
+	Rank           int64  `json:"rank"`
+	UserID         int64  `json:"-"`
+	Username       string `json:"-"`
+	Requests       int64  `json:"requests"`
+	Tokens         int64  `json:"tokens"`
+	OpenAIRequests int64  `json:"openai_requests"`
+	OpenAITokens   int64  `json:"openai_tokens"`
+	ClaudeRequests int64  `json:"claude_requests"`
+	ClaudeTokens   int64  `json:"claude_tokens"`
 }
 
 // UserBreakdownItem represents per-user usage breakdown within a dimension (group, model, endpoint).

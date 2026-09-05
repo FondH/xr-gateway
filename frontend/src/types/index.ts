@@ -241,6 +241,7 @@ export interface PublicSettings {
   home_content: string
   compact_home_enabled: boolean
   hide_ccs_import_button: boolean
+  purchase_subscription_enabled: boolean
   payment_enabled: boolean
   risk_control_enabled: boolean
   table_default_page_size: number
@@ -2048,6 +2049,10 @@ export interface UserSpendingRankingItem {
   actual_cost: number
   requests: number
   tokens: number
+  openai_requests: number
+  openai_tokens: number
+  claude_requests: number
+  claude_tokens: number
 }
 
 export interface UserSpendingRankingResponse {

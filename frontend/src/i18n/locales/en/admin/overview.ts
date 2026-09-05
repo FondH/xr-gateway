@@ -80,6 +80,15 @@ export default {
       failedToLoad: 'Failed to load dashboard statistics'
     },
 
+    ranking: {
+      subtitle: 'User ranking by usage',
+      day: 'Daily',
+      week: 'Weekly',
+      custom: 'Custom',
+      openai: 'OpenAI',
+      claude: 'Claude'
+    },
+
     backup: {
       title: 'Database Backup',
       description: 'Full database backup to S3-compatible storage with scheduled backup and restore',

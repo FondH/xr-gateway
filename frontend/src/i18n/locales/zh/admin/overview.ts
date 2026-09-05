@@ -80,6 +80,15 @@ export default {
       failedToLoad: '加载仪表盘数据失败'
     },
 
+    ranking: {
+      subtitle: '按使用量统计的用户排行榜',
+      day: '日排行',
+      week: '周排行',
+      custom: '自定义',
+      openai: 'OpenAI',
+      claude: 'Claude'
+    },
+
     backup: {
       title: '数据库备份',
       description: '全量数据库备份到 S3 兼容存储，支持定时备份与恢复',

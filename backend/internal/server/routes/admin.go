@@ -279,6 +279,11 @@ func registerOpsRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 }
 
 func registerDashboardRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	leaderboard := admin.Group("/user-ranking")
+	{
+		leaderboard.GET("/config", h.Usage.GetUserLeaderboardConfig)
+		leaderboard.PUT("/config", h.Usage.UpdateUserLeaderboardConfig)
+	}
 	dashboard := admin.Group("/dashboard")
 	{
 		dashboard.GET("/snapshot-v2", h.Admin.Dashboard.GetSnapshotV2)

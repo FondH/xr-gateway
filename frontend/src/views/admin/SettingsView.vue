@@ -7164,6 +7164,23 @@
 
         <div class="card">
           <div class="border-b border-gray-100 px-6 py-4 dark:border-dark-700">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">用户端菜单</h2>
+            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">控制用户端是否显示订阅和兑换入口。</p>
+          </div>
+          <div class="space-y-5 p-6">
+            <div class="flex items-center justify-between">
+              <div><label class="text-sm font-medium text-gray-700 dark:text-gray-300">显示“我的订阅”</label><p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">关闭后用户端侧边栏隐藏订阅入口。</p></div>
+              <Toggle v-model="form.purchase_subscription_enabled" />
+            </div>
+            <div class="flex items-center justify-between border-t border-gray-100 pt-4 dark:border-dark-700">
+              <div><label class="text-sm font-medium text-gray-700 dark:text-gray-300">显示“兑换”</label><p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">关闭后用户端侧边栏隐藏兑换入口。</p></div>
+              <Toggle v-model="form.promo_code_enabled" />
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="border-b border-gray-100 px-6 py-4 dark:border-dark-700">
             <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
               {{ t('admin.settings.features.channelMonitor.title') }}
             </h2>
@@ -9777,6 +9794,7 @@ const form = reactive<SettingsForm>({
   compact_home_enabled: false,
   backend_mode_enabled: false,
   hide_ccs_import_button: false,
+  purchase_subscription_enabled: false,
   payment_enabled: false,
   risk_control_enabled: false,
   cyber_session_block_enabled: false,
@@ -11422,6 +11440,7 @@ async function saveSettings() {
       registration_email_domain_quota_enabled:
         form.registration_email_domain_quota_enabled,
       promo_code_enabled: form.promo_code_enabled,
+      purchase_subscription_enabled: form.purchase_subscription_enabled,
       invitation_code_enabled: form.invitation_code_enabled,
       password_reset_enabled: form.password_reset_enabled,
       totp_enabled: form.totp_enabled,

@@ -426,6 +426,10 @@ const otherRankingItem = computed<RankingDisplayItem | null>(() => {
     actual_cost: otherActualCost,
     requests: otherRequests,
     tokens: otherTokens,
+    openai_requests: 0,
+    openai_tokens: 0,
+    claude_requests: 0,
+    claude_tokens: 0,
     isOther: true
   }
 })

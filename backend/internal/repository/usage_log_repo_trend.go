@@ -153,9 +153,15 @@ func (r *usageLogRepository) GetUserSpendingRanking(ctx context.Context, startTi
 				COALESCE(us.username, '') as username,
 				COALESCE(SUM(u.actual_cost), 0) as actual_cost,
 				COUNT(*) as requests,
-				COALESCE(SUM(u.input_tokens + u.output_tokens + u.cache_creation_tokens + u.cache_read_tokens), 0) as tokens
+				COALESCE(SUM(u.input_tokens + u.output_tokens + u.cache_creation_tokens + u.cache_read_tokens), 0) as tokens,
+				COUNT(*) FILTER (WHERE ` + usageLogEffectivePlatformExpr + ` = 'openai') as openai_requests,
+				COALESCE(SUM(u.input_tokens + u.output_tokens + u.cache_creation_tokens + u.cache_read_tokens) FILTER (WHERE ` + usageLogEffectivePlatformExpr + ` = 'openai'), 0) as openai_tokens,
+				COUNT(*) FILTER (WHERE ` + usageLogEffectivePlatformExpr + ` IN ('anthropic', 'claude')) as claude_requests,
+				COALESCE(SUM(u.input_tokens + u.output_tokens + u.cache_creation_tokens + u.cache_read_tokens) FILTER (WHERE ` + usageLogEffectivePlatformExpr + ` IN ('anthropic', 'claude')), 0) as claude_tokens
 			FROM usage_logs u
 			LEFT JOIN users us ON u.user_id = us.id
+			LEFT JOIN groups g ON u.group_id = g.id
+			LEFT JOIN accounts a ON u.account_id = a.id
 			WHERE u.created_at >= $1 AND u.created_at < $2
 			GROUP BY u.user_id, us.email, us.username
 		),
@@ -164,10 +170,14 @@ func (r *usageLogRepository) GetUserSpendingRanking(ctx context.Context, startTi
 				user_id,
 				email,
 				username,
-				actual_cost,
-				requests,
-				tokens,
-				COALESCE(SUM(actual_cost) OVER (), 0) as total_actual_cost,
+			actual_cost,
+			requests,
+			tokens,
+			openai_requests,
+			openai_tokens,
+			claude_requests,
+			claude_tokens,
+			COALESCE(SUM(actual_cost) OVER (), 0) as total_actual_cost,
 				COALESCE(SUM(requests) OVER (), 0) as total_requests,
 				COALESCE(SUM(tokens) OVER (), 0) as total_tokens
 			FROM user_spend
@@ -181,6 +191,10 @@ func (r *usageLogRepository) GetUserSpendingRanking(ctx context.Context, startTi
 			actual_cost,
 			requests,
 			tokens,
+			openai_requests,
+			openai_tokens,
+			claude_requests,
+			claude_tokens,
 			total_actual_cost,
 			total_requests,
 			total_tokens
@@ -205,7 +219,7 @@ func (r *usageLogRepository) GetUserSpendingRanking(ctx context.Context, startTi
 	totalTokens := int64(0)
 	for rows.Next() {
 		var row UserSpendingRankingItem
-		if err = rows.Scan(&row.UserID, &row.Email, &row.Username, &row.ActualCost, &row.Requests, &row.Tokens, &totalActualCost, &totalRequests, &totalTokens); err != nil {
+		if err = rows.Scan(&row.UserID, &row.Email, &row.Username, &row.ActualCost, &row.Requests, &row.Tokens, &row.OpenAIRequests, &row.OpenAITokens, &row.ClaudeRequests, &row.ClaudeTokens, &totalActualCost, &totalRequests, &totalTokens); err != nil {
 			return nil, err
 		}
 		ranking = append(ranking, row)
@@ -220,6 +234,74 @@ func (r *usageLogRepository) GetUserSpendingRanking(ctx context.Context, startTi
 		TotalRequests:   totalRequests,
 		TotalTokens:     totalTokens,
 	}, nil
+}
+
+// GetPublicLeaderboard ranks eligible users by a non-financial usage metric.
+func (r *usageLogRepository) GetPublicLeaderboard(ctx context.Context, startTime, endTime time.Time, metric string, minimumTokens, minimumRequests int64, includeUserIDs, excludeUserIDs []int64, limit int, currentUserID int64) (results []usagestats.PublicLeaderboardItem, err error) {
+	orderMetric := "tokens"
+	if metric == "requests" {
+		orderMetric = "requests"
+	}
+	if limit < 3 {
+		limit = 20
+	}
+	if limit > 50 {
+		limit = 50
+	}
+	args := []any{startTime, endTime}
+	next := 3
+	where := "u.created_at >= $1 AND u.created_at < $2"
+	appendIDs := func(column, prefix string, ids []int64) {
+		if len(ids) == 0 {
+			return
+		}
+		parts := make([]string, 0, len(ids))
+		for _, id := range ids {
+			parts = append(parts, fmt.Sprintf("$%d", next))
+			args = append(args, id)
+			next++
+		}
+		where += " AND " + column + " " + prefix + " (" + strings.Join(parts, ",") + ")"
+	}
+	appendIDs("u.user_id", "IN", includeUserIDs)
+	appendIDs("u.user_id", "NOT IN", excludeUserIDs)
+	minTokensPos, minRequestsPos, limitPos, currentUserPos := next, next+1, next+2, next+3
+	args = append(args, minimumTokens, minimumRequests, limit, currentUserID)
+	query := fmt.Sprintf(`
+		WITH user_usage AS (
+			SELECT u.user_id, COALESCE(us.username, '') AS username, COUNT(*) AS requests,
+				COALESCE(SUM(u.input_tokens + u.output_tokens + u.cache_creation_tokens + u.cache_read_tokens), 0) AS tokens,
+				COUNT(*) FILTER (WHERE %s = 'openai') AS openai_requests,
+				COALESCE(SUM(u.input_tokens + u.output_tokens + u.cache_creation_tokens + u.cache_read_tokens) FILTER (WHERE %s = 'openai'), 0) AS openai_tokens,
+				COUNT(*) FILTER (WHERE %s IN ('anthropic', 'claude')) AS claude_requests,
+				COALESCE(SUM(u.input_tokens + u.output_tokens + u.cache_creation_tokens + u.cache_read_tokens) FILTER (WHERE %s IN ('anthropic', 'claude')), 0) AS claude_tokens
+			FROM usage_logs u LEFT JOIN users us ON u.user_id = us.id
+			LEFT JOIN groups g ON u.group_id = g.id LEFT JOIN accounts a ON u.account_id = a.id
+			WHERE %s GROUP BY u.user_id, us.username
+			HAVING COALESCE(SUM(u.input_tokens + u.output_tokens + u.cache_creation_tokens + u.cache_read_tokens), 0) >= $%d AND COUNT(*) >= $%d
+		), ranked AS (
+			SELECT *, ROW_NUMBER() OVER (ORDER BY %s DESC, tokens DESC, user_id ASC) AS rank FROM user_usage
+		)
+		SELECT rank, user_id, username, requests, tokens, openai_requests, openai_tokens, claude_requests, claude_tokens
+		FROM ranked WHERE rank <= $%d OR user_id = $%d ORDER BY rank ASC`, usageLogEffectivePlatformExpr, usageLogEffectivePlatformExpr, usageLogEffectivePlatformExpr, usageLogEffectivePlatformExpr, where, minTokensPos, minRequestsPos, orderMetric, limitPos, currentUserPos)
+	rows, err := r.sql.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		if closeErr := rows.Close(); closeErr != nil && err == nil {
+			err = closeErr
+			results = nil
+		}
+	}()
+	for rows.Next() {
+		var item usagestats.PublicLeaderboardItem
+		if err = rows.Scan(&item.Rank, &item.UserID, &item.Username, &item.Requests, &item.Tokens, &item.OpenAIRequests, &item.OpenAITokens, &item.ClaudeRequests, &item.ClaudeTokens); err != nil {
+			return nil, err
+		}
+		results = append(results, item)
+	}
+	return results, rows.Err()
 }
 
 // GetUserUsageTrendByUserID 获取指定用户的使用趋势

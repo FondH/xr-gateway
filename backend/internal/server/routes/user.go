@@ -99,6 +99,7 @@ func RegisterUserRoutes(
 		usage := authenticated.Group("/usage")
 		usage.Use(panelRateLimiter.Heavy())
 		{
+			usage.GET("/leaderboard", h.Usage.GetUserLeaderboard)
 			usage.GET("", h.Usage.List)
 			usage.GET("/errors", h.Usage.ListErrors)
 			usage.GET("/errors/:id", h.Usage.GetErrorDetail)
