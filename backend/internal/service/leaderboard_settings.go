@@ -26,7 +26,7 @@ type UserLeaderboardSettings struct {
 
 func defaultUserLeaderboardSettings() UserLeaderboardSettings {
 	return UserLeaderboardSettings{
-		Enabled: false, Title: "使用排行榜", Period: "week", Metric: "tokens", Limit: 20,
+		Enabled: false, Title: "Token 排行", Period: "week", Metric: "tokens", Limit: 20,
 		ShowPlatformBreakdown: true, IncludeUserIDs: []int64{}, ExcludeUserIDs: []int64{},
 	}
 }
@@ -39,6 +39,10 @@ func (s *SettingService) GetUserLeaderboardSettings(ctx context.Context) (UserLe
 	}
 	if err := json.Unmarshal([]byte(raw), &settings); err != nil {
 		return UserLeaderboardSettings{}, fmt.Errorf("parse user leaderboard settings: %w", err)
+	}
+	// Migrate the previous built-in title while preserving every custom title.
+	if settings.Title == "使用排行榜" {
+		settings.Title = defaultUserLeaderboardSettings().Title
 	}
 	return normalizeUserLeaderboardSettings(settings)
 }

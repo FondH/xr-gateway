@@ -13,7 +13,7 @@
         </div>
       </div>
 
-      <div v-if="disabled" class="card p-10 text-center"><Icon name="chart" size="lg" class="mx-auto text-gray-400" /><p class="mt-4 text-base font-medium text-gray-900 dark:text-white">排行榜暂未开放</p><p class="mt-1 text-sm text-gray-500 dark:text-gray-400">管理员开启后即可查看本周期排名。</p></div>
+      <div v-if="disabled" class="card p-10 text-center"><Icon name="trophy" size="lg" class="mx-auto text-gray-400" /><p class="mt-4 text-base font-medium text-gray-900 dark:text-white">排行榜暂未开放</p><p class="mt-1 text-sm text-gray-500 dark:text-gray-400">管理员开启后即可查看本周期排名。</p></div>
       <template v-else>
         <div v-if="loading" class="card flex h-64 items-center justify-center"><LoadingSpinner /></div>
         <template v-else-if="data">

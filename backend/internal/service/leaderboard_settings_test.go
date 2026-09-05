@@ -53,6 +53,7 @@ func TestUserLeaderboardSettingsDefaultsAndNormalization(t *testing.T) {
 	settings, err := svc.GetUserLeaderboardSettings(context.Background())
 	require.NoError(t, err)
 	require.False(t, settings.Enabled)
+	require.Equal(t, "Token 排行", settings.Title)
 	require.Equal(t, "week", settings.Period)
 	require.Equal(t, "tokens", settings.Metric)
 	require.Equal(t, 20, settings.Limit)
@@ -69,6 +70,16 @@ func TestUserLeaderboardSettingsDefaultsAndNormalization(t *testing.T) {
 	var stored UserLeaderboardSettings
 	require.NoError(t, json.Unmarshal([]byte(svc.settingRepo.(*leaderboardSettingsRepoStub).values[SettingKeyUserLeaderboard]), &stored))
 	require.Equal(t, updated, stored)
+}
+
+func TestUserLeaderboardSettingsMigratesPreviousDefaultTitle(t *testing.T) {
+	stored, err := json.Marshal(UserLeaderboardSettings{Title: "使用排行榜", Period: "week", Metric: "tokens", Limit: 20})
+	require.NoError(t, err)
+
+	svc := NewSettingService(&leaderboardSettingsRepoStub{values: map[string]string{SettingKeyUserLeaderboard: string(stored)}}, &config.Config{})
+	settings, err := svc.GetUserLeaderboardSettings(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, "Token 排行", settings.Title)
 }
 
 func TestUserLeaderboardSettingsRejectInvalidControls(t *testing.T) {
