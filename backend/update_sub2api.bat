@@ -1,12 +1,11 @@
 @echo off
-chcp 65001 >nul
 REM ============================================================
-REM  sub2api ä¸€é”®æ›´æ–°è„šæœ¬ï¼ˆæºç éƒ¨ç½²ï¼‰
-REM  æµç¨‹: æ‹‰å–å®˜æ–¹æ›´æ–°å¹¶è‡ªåŠ¨é‡æ”¾æœ¬åœ°å®šåˆ¶åŠŸèƒ½ -> æ„å»º -> é‡å¯
-REM  - ä¸ run_sub2api.bat åŒçº§ï¼ŒåŒå‡»è¿è¡Œå³å¯
-REM  - é…ç½® backend\config.yaml ä¸æ•°æ® backend\data\ ä¸å—å½±å“
-REM  - å®é™…ç›‘å¬ç«¯å£ä»¥ config.yaml ä¸ºå‡†ï¼ˆå½“å‰ 18271ï¼‰
-REM  - GOPROXY èµ°å›½å†…é•œåƒï¼Œé¿å… Go å·¥å…·é“¾/ä¾èµ–ä¸‹è½½å¤±è´¥
+REM  sub2api Ò»¼ü¸üĞÂ½Å±¾£¨Ô´Âë²¿Êğ£©
+REM  Á÷³Ì: À­È¡¹Ù·½¸üĞÂ²¢×Ô¶¯ÖØ·Å±¾µØ¶¨ÖÆ¹¦ÄÜ -> ¹¹½¨ -> ÖØÆô
+REM  - Óë run_sub2api.bat Í¬¼¶£¬Ë«»÷ÔËĞĞ¼´¿É
+REM  - ÅäÖÃ backend\config.yaml ÓëÊı¾İ backend\data\ ²»ÊÜÓ°Ïì
+REM  - Êµ¼Ê¼àÌı¶Ë¿ÚÒÔ config.yaml Îª×¼£¨µ±Ç° 18271£©
+REM  - GOPROXY ×ß¹úÄÚ¾µÏñ£¬±ÜÃâ Go ¹¤¾ßÁ´/ÒÀÀµÏÂÔØÊ§°Ü
 REM ============================================================
 setlocal
 set GOPROXY=https://goproxy.cn,direct
@@ -15,38 +14,38 @@ set "ROOT=%~dp0.."
 for /f %%i in ('git -C "%ROOT%" describe --tags') do set "OLDVER=%%i"
 
 for /f %%i in ('git -C "%ROOT%" branch --show-current') do set "BRANCH=%%i"
-echo [1/5] è·å–å®˜æ–¹æœ€æ–°ä»£ç ...
+echo [1/5] »ñÈ¡¹Ù·½×îĞÂ´úÂë...
 git -C "%ROOT%" fetch origin || goto :fail
 
-echo [2/5] è‡ªåŠ¨åº”ç”¨æœ¬åœ°å®šåˆ¶åŠŸèƒ½...
+echo [2/5] ×Ô¶¯Ó¦ÓÃ±¾µØ¶¨ÖÆ¹¦ÄÜ...
 if /I "%BRANCH%"=="main" (
   git -C "%ROOT%" pull --ff-only origin main || goto :fail
 ) else (
   git -C "%ROOT%" rebase origin/main || goto :fail
 )
 
-echo [3/5] å®‰è£…å‰ç«¯ä¾èµ– (pnpm install)...
+echo [3/5] °²×°Ç°¶ËÒÀÀµ (pnpm install)...
 pushd "%ROOT%\frontend" || goto :fail
 call pnpm install || goto :fail
 
-echo [4/5] æ„å»ºå‰ç«¯ (pnpm run build)...
+echo [4/5] ¹¹½¨Ç°¶Ë (pnpm run build)...
 call pnpm run build || goto :fail
 popd
 
-echo [5/5] åœæ­¢æ—§æœåŠ¡å¹¶ç¼–è¯‘åç«¯...
+echo [5/5] Í£Ö¹¾É·şÎñ²¢±àÒëºó¶Ë...
 taskkill /F /IM sub2api.exe >nul 2>&1
 pushd "%~dp0" || goto :fail
 G:\Programer\go\bin\go build -tags embed -o sub2api.exe ./cmd/server || goto :fail
 popd
 
-echo é‡å¯æœåŠ¡...
+echo ÖØÆô·şÎñ...
 start "" "%~dp0run_sub2api.bat"
 
 for /f %%i in ('git -C "%ROOT%" describe --tags') do set "NEWVER=%%i"
 echo.
 echo ============================================
-echo   æ›´æ–°å®Œæˆ: %OLDVER% -^> %NEWVER%
-echo   æœåŠ¡å·²åœ¨æ–°çª—å£å¯åŠ¨ï¼Œç¨å€™å‡ ç§’å³å¯è®¿é—®
+echo   ¸üĞÂÍê³É: %OLDVER% -^> %NEWVER%
+echo   ·şÎñÒÑÔÚĞÂ´°¿ÚÆô¶¯£¬ÉÔºò¼¸Ãë¼´¿É·ÃÎÊ
 echo ============================================
 endlocal
 pause
@@ -54,7 +53,7 @@ exit /b 0
 
 :fail
 echo.
-echo [é”™è¯¯] æ›´æ–°å¤±è´¥ï¼
-echo å¦‚æœæœåŠ¡å·²è¢«åœæ­¢ï¼Œè¯·æ‰‹åŠ¨åŒå‡» run_sub2api.bat å¯åŠ¨
+echo [´íÎó] ¸üĞÂÊ§°Ü£¡
+echo Èç¹û·şÎñÒÑ±»Í£Ö¹£¬ÇëÊÖ¶¯Ë«»÷ run_sub2api.bat Æô¶¯
 pause
 exit /b 1
