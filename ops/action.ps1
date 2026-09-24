@@ -71,11 +71,11 @@ try {
             $taskName = 'Sub2API-Linux-Database-Sync'
             $pwsh = (Get-Command pwsh.exe).Source
             $syncScript = Join-Path $PSScriptRoot 'sync-prod-db.ps1'
-            $action = New-ScheduledTaskAction -Execute $pwsh -Argument "-NoProfile -NonInteractive -File `"$syncScript`""
+            $taskAction = New-ScheduledTaskAction -Execute $pwsh -Argument "-NoProfile -NonInteractive -File `"$syncScript`""
             $trigger = New-ScheduledTaskTrigger -Daily -At '00:00'
             $principal = New-ScheduledTaskPrincipal -UserId 'NT AUTHORITY\SYSTEM' -LogonType ServiceAccount -RunLevel Highest
             $taskSettings = New-ScheduledTaskSettingsSet -StartWhenAvailable -ExecutionTimeLimit (New-TimeSpan -Hours 2)
-            Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Principal $principal -Settings $taskSettings -Force | Out-Null
+            Register-ScheduledTask -TaskName $taskName -Action $taskAction -Trigger $trigger -Principal $principal -Settings $taskSettings -Force | Out-Null
             Write-Host "Scheduled $taskName daily at 00:00. No sync was started now."
         }
     }
