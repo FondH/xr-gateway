@@ -56,7 +56,7 @@ $headline = New-Label '服务状态' 28 26
 $headline.Font = [Drawing.Font]::new('Microsoft YaHei UI', 16, [Drawing.FontStyle]::Bold)
 $operations.Controls.Add($headline)
 $devStatus = New-Label '本机开发 18271：检查中' 28 72
-$prodStatus = New-Label '本机生产 18272：检查中' 28 106
+$prodStatus = New-Label '本机生产 127.0.0.1:18272：检查中' 28 106
 $linuxStatus = New-Label 'Linux Docker 8080：检查中' 28 140
 $syncStatus = New-Label '最近同步：检查中' 28 174
 $taskStatus = New-Label '定时任务：检查中' 28 208
@@ -76,7 +76,7 @@ function Refresh-Status {
         try { $hostName = (Get-OperationsSettings).host } catch { }
     }
     $devStatus.Text = "本机开发 18271：$(Test-Health '127.0.0.1' 18271)"
-    $prodStatus.Text = "本机生产 18272：$(Test-Health '127.0.0.1' 18272)"
+    $prodStatus.Text = "本机生产 127.0.0.1:18272：$(Test-Health '127.0.0.1' 18272)"
     $linuxStatus.Text = "Linux Docker ${hostName}:8080：$(Test-Health $hostName 8080)"
     if (Test-Path -LiteralPath $script:SyncStatePath) {
         try {
@@ -110,7 +110,7 @@ $operations.Controls.Add((New-Button '启动本机开发' 28 323 180 {
     Start-Action 'StartDev' '若开发服务已运行，当前进程会保持不变。继续吗？'
 }))
 $operations.Controls.Add((New-Button '启动本机生产' 222 323 180 {
-    Start-Action 'StartProd' '将在本机 18272 端口启动第二个实例，连接 Linux 数据库与 Redis；不会关闭开发服务。继续吗？'
+    Start-Action 'StartProd' '将在本机 127.0.0.1:18272 启动第二个实例，连接 Linux 数据库与 Redis；不会关闭开发服务。继续吗？'
 }))
 $operations.Controls.Add((New-Button '立即同步数据库' 416 323 180 {
     Start-Action 'Sync' '将 Linux 生产库导入本机独立快照库，不覆盖本机开发库。继续吗？'
@@ -123,6 +123,9 @@ $operations.Controls.Add((New-Button '获取官方更新' 28 390 180 {
 }))
 $operations.Controls.Add((New-Button '部署并启动 Linux' 222 390 250 {
     Start-Action 'Deploy' '将当前已提交代码推送到个人仓库，并让 Linux 拉取、备份、构建 Docker、启动服务。继续吗？'
+}))
+$operations.Controls.Add((New-Button '启动全部' 486 390 200 {
+    Start-Action 'StartAll' '将部署并启动 Linux，确认健康后启动本机 127.0.0.1:18272。现有 18271 服务不受影响。继续吗？'
 }))
 $operations.Controls.Add((New-Label '本机 18271 的现有进程不会被这些操作停止。' 28 465 740))
 
