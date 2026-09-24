@@ -707,7 +707,7 @@ const ChevronDownIcon = {
 const flagChannelMonitor = makeSidebarFlag(FeatureFlags.channelMonitor)
 const flagPayment = makeSidebarFlag(FeatureFlags.payment)
 const flagRedeem = makeSidebarFlag(FeatureFlags.redeem)
-const flagSubscriptions = makeSidebarFlag(FeatureFlags.subscriptions)
+//const flagSubscriptions = makeSidebarFlag(FeatureFlags.subscriptions)
 const flagAvailableChannels = makeSidebarFlag(FeatureFlags.availableChannels)
 const flagSubscription = makeSidebarFlag(FeatureFlags.subscription)
 
