@@ -1,0 +1,6 @@
+services:
+  sub2api:
+    image: xr-gateway:local
+    build:
+      context: ..
+      dockerfile: Dockerfile
