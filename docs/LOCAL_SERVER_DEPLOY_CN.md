@@ -39,7 +39,7 @@ git push personal HEAD:main
 git ls-remote personal refs/heads/main
 ```
 
-检查远端哈希与 `git rev-parse HEAD` 一致。个人仓库的 `main` 必须只向前推进；不要对已推送的定制提交执行 rebase 或强制推送。若本机 GitHub 代理 `127.0.0.1:7890` 不可用，可只对该次命令覆盖代理：`git -c http.proxy= push personal HEAD:main`。
+检查远端哈希与 `git rev-parse HEAD` 一致。个人仓库的 `main` 必须只向前推进；不要对已推送的定制提交执行 rebase 或强制推送。本机仓库已设置 SOCKS5 Git 代理 `socks5h://192.168.31.186:15732`，覆盖旧的全局 `127.0.0.1:7890` 代理；若代理地址改变，在仓库中执行 `git config --local http.proxy socks5h://<新地址>:<端口>`。注意 `15732` 是网络下载代理端口，不是 lanproxy 穿透服务端口。
 
 ## 服务器：拉取、备份、构建、切换
 
@@ -52,6 +52,8 @@ git pull --ff-only
 git log -1 --oneline
 sudo docker compose -f deploy/docker-compose.local.yml -f deploy/docker-compose.custom.yml config --quiet
 ```
+
+服务器仓库已设置 Git 代理 `socks5h://127.0.0.1:15732`；若这个本机 SOCKS5 代理停止或换端口，用 `git config --local http.proxy socks5h://127.0.0.1:<新端口>` 更新。不要把 SOCKS5 地址写成 `http://`，也不要把它当作 lanproxy 的代理目标。
 
 先备份正在运行的数据库和服务器配置，给旧镜像加一个保留标签，再构建应用镜像。以下数据库备份命令适用于 PostgreSQL 容器已经启动的情况；首次部署数据库尚未启动时跳过该步骤。
 
