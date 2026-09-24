@@ -53,14 +53,18 @@ git log -1 --oneline
 sudo docker compose -f deploy/docker-compose.local.yml -f deploy/docker-compose.custom.yml config --quiet
 ```
 
-先备份正在运行的数据库，再构建应用镜像。以下备份命令适用于 PostgreSQL 容器已经启动的情况；首次部署数据库尚未启动时跳过该步骤。
+先备份正在运行的数据库和服务器配置，给旧镜像加一个保留标签，再构建应用镜像。以下数据库备份命令适用于 PostgreSQL 容器已经启动的情况；首次部署数据库尚未启动时跳过该步骤。
 
 ```bash
+umask 077
 mkdir -p /home/fond/backups
 sudo docker compose -f deploy/docker-compose.local.yml -f deploy/docker-compose.custom.yml \
   exec -T postgres sh -c 'PGPASSWORD="$POSTGRES_PASSWORD" pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB"' \
   > "/home/fond/backups/sub2api-$(date +%Y%m%d-%H%M%S).sql"
 chmod 600 /home/fond/backups/sub2api-*.sql
+tar -czf "/home/fond/backups/sub2api-config-$(date +%Y%m%d-%H%M%S).tgz" -C deploy .env data
+sudo docker image tag xr-gateway:local "xr-gateway:pre-update-$(date +%Y%m%d-%H%M%S)"
+sudo docker image ls xr-gateway
 sudo docker compose -f deploy/docker-compose.local.yml -f deploy/docker-compose.custom.yml build sub2api
 sudo docker run --rm --entrypoint /app/sub2api xr-gateway:local -version
 ```
@@ -90,7 +94,6 @@ sudo docker compose -f deploy/docker-compose.local.yml -f deploy/docker-compose.
 
 ```bash
 /home/fond/lanproxy/client_linux_amd64 -s <lanproxy服务端地址> -p <连接端口> -k <客户端密钥>
-# SSL 连接另加：-ssl true -cer <可信服务端证书路径>
 ```
 
-该旧版客户端会将客户端密钥写入日志，且 `-k` 参数会出现在进程命令行。请勿在共享终端或公开日志中使用真实密钥；之后配置长期运行方式时需考虑这一点。它的 SSL 模式在不指定证书时会跳过证书验证，不能把裸 `-ssl true` 当成安全连接。尚未设置服务端地址和密钥前，客户端不应启动。公网入口还需要在服务端配置域名/端口及 HTTPS 终止；仅下载客户端不会自动开放公网访问。建议在公网穿透启用前，将服务器 `deploy/.env` 中的 `BIND_HOST` 改成 `127.0.0.1`，限制宿主机端口仅本机可访问，然后用上述 Compose 命令重新创建应用容器。
+该旧版客户端会将客户端密钥写入日志，且 `-k` 参数会出现在进程命令行。请勿在共享终端或公开日志中使用真实密钥；之后配置长期运行方式时需考虑这一点。它的 SSL 模式在未提供证书时会跳过证书验证，源码对自定义证书的处理也需要另行验证；配置加密连接前应先解决这两个问题。尚未设置服务端地址和密钥前，客户端不应启动。公网入口还需要在服务端配置域名/端口及 HTTPS 终止；仅下载客户端不会自动开放公网访问。当前 Sub2API 映射是 `0.0.0.0:8080`。建议在公网穿透启用前，将服务器 `deploy/.env` 中的 `BIND_HOST` 改成 `127.0.0.1`，限制宿主机端口仅本机可访问，然后用上述 Compose 命令重新创建应用容器。
