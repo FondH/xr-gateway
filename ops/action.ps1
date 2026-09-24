@@ -20,7 +20,7 @@ try {
             & git.exe -C $script:RepoRoot diff --quiet HEAD --
             if ($LASTEXITCODE -ne 0) { throw 'Commit tracked changes before deployment.' }
             Invoke-Checked 'git.exe' @('-C', $script:RepoRoot, 'push', 'personal', 'HEAD:main')
-            Invoke-Checked 'ssh.exe' @('-tt', "$($settings.sshUser)@$($settings.host)", 'bash /home/fond/xr-gateway/deploy/ops-deploy.sh')
+            Invoke-Checked 'ssh.exe' @('-tt', "$($settings.sshUser)@$($settings.host)", 'cd /home/fond/xr-gateway && git pull --ff-only && bash deploy/ops-deploy.sh')
         }
         Sync {
             & (Join-Path $PSScriptRoot 'sync-prod-db.ps1')
