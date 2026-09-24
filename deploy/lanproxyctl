@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+config_file=/home/fond/lanproxy/client.env
+client=/home/fond/lanproxy/client_linux_amd64
+unit=lanproxy-client.service
+
+check_config() {
+  if [[ ! -f "$config_file" ]]; then
+    echo "Missing $config_file. Copy deploy/lanproxy-client.env.example and fill it in." >&2
+    return 1
+  fi
+  if [[ ! -r "$config_file" ]]; then
+    echo "Cannot read $config_file." >&2
+    return 1
+  fi
+
+  # This owner-controlled file is shell syntax, so quoted keys are preserved.
+  source "$config_file"
+  if [[ -z "${LANPROXY_SERVER:-}" || -z "${LANPROXY_KEY:-}" ]]; then
+    echo "Set LANPROXY_SERVER and LANPROXY_KEY in $config_file." >&2
+    return 1
+  fi
+  if [[ ! "${LANPROXY_PORT:-}" =~ ^[0-9]+$ ]] ||
+     (( LANPROXY_PORT < 1 || LANPROXY_PORT > 65535 )); then
+    echo "LANPROXY_PORT must be an integer from 1 to 65535." >&2
+    return 1
+  fi
+  if [[ ! -x "$client" ]]; then
+    echo "Missing executable $client." >&2
+    return 1
+  fi
+}
+
+case "${1:-}" in
+  check)
+    check_config
+    echo "Lanproxy client configuration is valid."
+    ;;
+  run)
+    check_config
+    exec "$client" -s "$LANPROXY_SERVER" -p "$LANPROXY_PORT" -k "$LANPROXY_KEY"
+    ;;
+  start|stop|restart|status|enable|disable)
+    exec sudo systemctl "$1" "$unit"
+    ;;
+  logs)
+    exec sudo journalctl -u "$unit" -f
+    ;;
+  *)
+    echo "Usage: lanproxyctl {check|run|start|stop|restart|status|enable|disable|logs}" >&2
+    exit 2
+    ;;
+esac

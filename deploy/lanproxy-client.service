@@ -1,0 +1,21 @@
+[Unit]
+Description=Lanproxy client for Sub2API
+Wants=network-online.target
+After=network-online.target
+StartLimitIntervalSec=60
+StartLimitBurst=3
+
+[Service]
+Type=simple
+User=fond
+Group=fond
+WorkingDirectory=/home/fond/lanproxy
+ExecStartPre=/usr/local/bin/lanproxyctl check
+ExecStart=/usr/local/bin/lanproxyctl run
+Restart=on-failure
+RestartSec=5
+UMask=0077
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target
