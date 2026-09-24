@@ -8,7 +8,7 @@ SSH 登录服务器后，在当前终端定义一次 `dc`：
 
 ```bash
 cd /home/fond/xr-gateway
-dc() { sudo docker compose -f deploy/docker-compose.local.yml -f deploy/docker-compose.custom.yml "$@"; }
+dc() { sudo docker compose -f deploy/docker-compose.local.yml -f deploy/docker-compose.custom.yml -f deploy/docker-compose.lan.yml "$@"; }
 ```
 
 以下命令按需要单独执行：
@@ -21,7 +21,7 @@ dc() { sudo docker compose -f deploy/docker-compose.local.yml -f deploy/docker-c
 | 只重启应用 | `dc restart sub2api` |
 | 查看应用日志 | `dc logs -f sub2api`，`Ctrl+C` 只退出查看 |
 
-Docker 服务已开机自启，三个容器配置了 `restart: unless-stopped`：运行中的容器会随服务器重启恢复；手动 `dc stop` 后不会自行恢复。需要再次运行时执行 `dc up -d --no-build`。数据在 `deploy/data/`、`deploy/postgres_data/`、`deploy/redis_data/`；密码和密钥在未提交的 `deploy/.env`。
+Docker 服务已开机自启，三个容器配置了 `restart: unless-stopped`：运行中的容器会随服务器重启恢复；手动 `dc stop` 后不会自行恢复。需要再次运行时执行 `dc up -d --no-build`。使用局域网端口覆盖文件前，必须在未提交的 `deploy/.env` 设置非空 `REDIS_PASSWORD`。数据在 `deploy/data/`、`deploy/postgres_data/`、`deploy/redis_data/`。
 
 ## 本机更新代码
 
@@ -52,7 +52,7 @@ git push personal HEAD:main
 
 ```bash
 cd /home/fond/xr-gateway
-dc() { sudo docker compose -f deploy/docker-compose.local.yml -f deploy/docker-compose.custom.yml "$@"; }
+dc() { sudo docker compose -f deploy/docker-compose.local.yml -f deploy/docker-compose.custom.yml -f deploy/docker-compose.lan.yml "$@"; }
 mkdir -p /home/fond/backups
 umask 077
 dc exec -T postgres sh -c 'PGPASSWORD="$POSTGRES_PASSWORD" pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB"' > "/home/fond/backups/sub2api-$(date +%Y%m%d-%H%M%S).sql"
