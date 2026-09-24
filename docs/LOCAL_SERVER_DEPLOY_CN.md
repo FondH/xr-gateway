@@ -1,12 +1,31 @@
-# 定制版 Sub2API：本机更新、服务器部署
+# Sub2API 运维速查
 
-本机仓库路径：`G:\openclaw!\smalltools\zhongzhuan\enterprise-ai-gateway\sub2api-src`。本机的 `origin` 是官方 `Wei-Shaw/sub2api`，`personal` 是自己的 `FondH/xr-gateway`。定制分支为 `user-ranking-custom`；个人仓库和服务器使用 `main`。服务器目录为 `/home/fond/xr-gateway`。
+## 访问与开关
 
-当前服务器使用 Docker Compose：应用镜像从本仓库的 `Dockerfile` 构建，PostgreSQL 和 Redis 使用官方 Compose 的容器及本地数据目录。任何版本更新均先在本机合并和测试，再推送个人仓库，最后在服务器拉取、构建和手动切换。不要在服务器合并官方分支，也不要运行只下载官方镜像的更新脚本。
+服务器目录：`/home/fond/xr-gateway`。当前应用、PostgreSQL、Redis 均在运行；局域网访问 `http://192.168.31.186:8080`。宿主机端口 `8080` 映射到 Sub2API 容器端口 `8080`；同一 Compose 网络里的其他容器可用 `http://sub2api:8080`。lanproxy 客户端运行在宿主机，穿透目标用 `127.0.0.1:8080`。
 
-## 本机：合并官方更新并推送
+SSH 登录服务器后，在当前终端定义一次 `dc`：
 
-在 PowerShell 中进入仓库：
+```bash
+cd /home/fond/xr-gateway
+dc() { sudo docker compose -f deploy/docker-compose.local.yml -f deploy/docker-compose.custom.yml "$@"; }
+```
+
+以下命令按需要单独执行：
+
+| 目的 | 命令 |
+| --- | --- |
+| 查看状态 | `dc ps` |
+| 启动全部服务 | `dc up -d --no-build` |
+| 关闭全部服务，保留数据 | `dc stop` |
+| 只重启应用 | `dc restart sub2api` |
+| 查看应用日志 | `dc logs -f sub2api`，`Ctrl+C` 只退出查看 |
+
+Docker 服务已开机自启，三个容器配置了 `restart: unless-stopped`：运行中的容器会随服务器重启恢复；手动 `dc stop` 后不会自行恢复。需要再次运行时执行 `dc up -d --no-build`。数据在 `deploy/data/`、`deploy/postgres_data/`、`deploy/redis_data/`；密码和密钥在未提交的 `deploy/.env`。
+
+## 本机更新代码
+
+在 Windows PowerShell 中逐条执行，任何一步失败就停止。`origin` 是官方仓库，`personal` 是自己的公开仓库；不要提交 `backend/run_sub2api.bat`、配置或数据。
 
 ```powershell
 cd 'G:\openclaw!\smalltools\zhongzhuan\enterprise-ai-gateway\sub2api-src'
@@ -14,13 +33,6 @@ git switch user-ranking-custom
 git status --short
 git fetch origin
 git merge origin/main
-```
-
-先处理 `git status` 报告的已跟踪修改，避免它们阻止合并。`backend/run_sub2api.bat`、`backend/config.yaml`、`backend/data/`、`deploy/.env` 和数据库数据不得提交到公开仓库。合并冲突时编辑冲突文件，`git add <文件>` 后执行 `git commit`；如果无需合并，Git 会报告已是最新。
-
-本机验证（Go 未加入 PATH，使用现有安装位置）：
-
-```powershell
 cd backend
 & 'G:\Programer\go\bin\go.exe' test ./internal/repository ./internal/handler/admin
 cd ../frontend
@@ -29,81 +41,41 @@ pnpm typecheck
 pnpm build
 cd ..
 git diff --check
-git status --short
-```
-
-修复测试问题并提交定制改动后，再推送服务器使用的分支：
-
-```powershell
 git push personal HEAD:main
-git ls-remote personal refs/heads/main
 ```
 
-检查远端哈希与 `git rev-parse HEAD` 一致。个人仓库的 `main` 必须只向前推进；不要对已推送的定制提交执行 rebase 或强制推送。本机仓库已设置 SOCKS5 Git 代理 `socks5h://192.168.31.186:15732`，覆盖旧的全局 `127.0.0.1:7890` 代理；若代理地址改变，在仓库中执行 `git config --local http.proxy socks5h://<新地址>:<端口>`。注意 `15732` 是网络下载代理端口，不是 lanproxy 穿透服务端口。
+合并冲突先解决并提交，测试通过再推送。已公开的定制分支使用 `merge`，不要 rebase 后强推。
 
-## 服务器：拉取、备份、构建、切换
+## 服务器更新代码
 
-SSH 登录 `fond@192.168.31.186` 后：
+在服务器上逐条执行，任何一步失败就停止。先备份数据库，再拉取已在本机测试并推送的代码。构建镜像不会切换正在运行的容器；最后一行由你决定何时执行。
 
 ```bash
 cd /home/fond/xr-gateway
-git status --short --branch
-git pull --ff-only
-git log -1 --oneline
-sudo docker compose -f deploy/docker-compose.local.yml -f deploy/docker-compose.custom.yml config --quiet
-```
-
-服务器仓库已设置 Git 代理 `socks5h://127.0.0.1:15732`；若这个本机 SOCKS5 代理停止或换端口，用 `git config --local http.proxy socks5h://127.0.0.1:<新端口>` 更新。不要把 SOCKS5 地址写成 `http://`，也不要把它当作 lanproxy 的代理目标。
-
-先备份正在运行的数据库和服务器配置，给旧镜像加一个保留标签，再构建应用镜像。以下数据库备份命令适用于 PostgreSQL 容器已经启动的情况；首次部署数据库尚未启动时跳过该步骤。
-
-```bash
-umask 077
+dc() { sudo docker compose -f deploy/docker-compose.local.yml -f deploy/docker-compose.custom.yml "$@"; }
 mkdir -p /home/fond/backups
-sudo docker compose -f deploy/docker-compose.local.yml -f deploy/docker-compose.custom.yml \
-  exec -T postgres sh -c 'PGPASSWORD="$POSTGRES_PASSWORD" pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB"' \
-  > "/home/fond/backups/sub2api-$(date +%Y%m%d-%H%M%S).sql"
-chmod 600 /home/fond/backups/sub2api-*.sql
-tar -czf "/home/fond/backups/sub2api-config-$(date +%Y%m%d-%H%M%S).tgz" -C deploy .env data
+umask 077
+dc exec -T postgres sh -c 'PGPASSWORD="$POSTGRES_PASSWORD" pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB"' > "/home/fond/backups/sub2api-$(date +%Y%m%d-%H%M%S).sql"
+git pull --ff-only
 sudo docker image tag xr-gateway:local "xr-gateway:pre-update-$(date +%Y%m%d-%H%M%S)"
-sudo docker image ls xr-gateway
-sudo docker compose -f deploy/docker-compose.local.yml -f deploy/docker-compose.custom.yml build sub2api
+dc build sub2api
 sudo docker run --rm --entrypoint /app/sub2api xr-gateway:local -version
+dc up -d --no-build
 ```
 
-执行备份后确认 SQL 文件非空。`deploy/.env`、`deploy/data/`、`deploy/postgres_data/` 和 `deploy/redis_data/` 是服务器私有数据，升级时保留。应用启动会执行数据库迁移，回退镜像前应先检查迁移是否需要恢复数据库备份。
+首次部署、数据库容器尚未运行时跳过备份命令。升级不会删除 `deploy/.env` 和数据目录；应用启动时可能执行数据库迁移。
 
-由你决定切换时间，再手动启动或更新容器：
+## lanproxy
 
-```bash
-sudo docker compose -f deploy/docker-compose.local.yml -f deploy/docker-compose.custom.yml up -d --no-build
-sudo docker compose -f deploy/docker-compose.local.yml -f deploy/docker-compose.custom.yml ps
-sudo docker compose -f deploy/docker-compose.local.yml -f deploy/docker-compose.custom.yml logs --tail=100 sub2api
-```
-
-若只是查看日志或停止应用，不需要删除数据卷：
+Go 客户端没有原生配置文件。本仓库安装的包装命令读取 `/home/fond/lanproxy/client.env`，编辑后检查并启动：
 
 ```bash
-sudo docker compose -f deploy/docker-compose.local.yml -f deploy/docker-compose.custom.yml logs -f sub2api
-sudo docker compose -f deploy/docker-compose.local.yml -f deploy/docker-compose.custom.yml stop sub2api
-```
-
-## lanproxy 客户端
-
-服务器上的 Linux amd64 客户端安装于 `/home/fond/lanproxy/client_linux_amd64`，由 [ffay/lanproxy-go-client](https://github.com/ffay/lanproxy-go-client) 的 `682c267` 源码编译。该项目的 GitHub Release 没有直接附带客户端文件；以后需要重新构建时，先从对应提交下载源码，再用 Go 交叉编译 `CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o client_linux_amd64 ./src/main`。旧源码依赖 `github.com/urfave/cli`，这次构建使用 `v1.22.17`。它与 [ffay/lanproxy](https://github.com/ffay/lanproxy) 的服务端配套使用。客户端无需在 Sub2API 容器内运行：lanproxy 管理后台的代理目标填 `127.0.0.1:8080`，也就是服务器宿主机上的 Sub2API 映射端口。PostgreSQL 和 Redis 不应建立公网穿透规则。
-
-先在 lanproxy 服务端后台创建客户端和 TCP 代理规则，取得服务端地址、客户端连接端口和客户端密钥。普通连接端口通常为 `4900`，但以你自己的服务端配置为准。这个 Go 客户端原生没有配置文件；`client.env` 是本仓库的 `lanproxyctl` 包装命令读取的私有配置。首次使用时在服务器执行：
-
-```bash
-cd /home/fond/xr-gateway
-cp -n deploy/lanproxy-client.env.example /home/fond/lanproxy/client.env
-chmod 600 /home/fond/lanproxy/client.env
 vim /home/fond/lanproxy/client.env
 lanproxyctl check
 lanproxyctl start
 lanproxyctl status
+lanproxyctl enable             # 确认正常后设置开机自启
+lanproxyctl stop
 ```
 
-`lanproxyctl` 位于 `/usr/local/bin`，支持 `check`、`run`（前台调试）、`start`、`stop`、`restart`、`status`、`logs`、`enable` 和 `disable`。`start` 通过 systemd 启动；确认连接正常后运行 `lanproxyctl enable`，才会设置开机启动。服务定义在 `/etc/systemd/system/lanproxy-client.service`，初始状态为未启用、未运行。
-
-该旧版客户端会将客户端密钥写入 systemd 日志，且 `-k` 参数会出现在进程命令行。`client.env` 设置为仅所有者可读，也不能消除这两处暴露；不要在共享终端或公开日志中使用真实密钥。包装命令目前只启用普通 TCP 连接。原版客户端的 SSL 模式在未提供证书时会跳过证书验证，源码对自定义证书的处理也需要另行验证；配置加密连接前应先解决这两个问题。尚未设置服务端地址和密钥前，客户端不应启动。公网入口还需要在服务端配置域名/端口及 HTTPS 终止；仅下载客户端不会自动开放公网访问。当前 Sub2API 映射是 `0.0.0.0:8080`。建议在公网穿透启用前，将服务器 `deploy/.env` 中的 `BIND_HOST` 改成 `127.0.0.1`，限制宿主机端口仅本机可访问，然后用上述 Compose 命令重新创建应用容器。
+`LANPROXY_SERVER`、`LANPROXY_PORT`、`LANPROXY_KEY` 填 lanproxy 服务端提供的值。`15732` 是 SOCKS5 下载代理，不是 lanproxy 穿透端口。旧客户端会把密钥写入服务日志和进程参数，不要公开其日志。当前 Sub2API 对所有宿主机网卡开放 `8080`；若只经 lanproxy 访问，把 `deploy/.env` 的 `BIND_HOST` 改为 `127.0.0.1`，再执行 `dc up -d --no-build`。
