@@ -8,8 +8,21 @@
       class="h-screen w-full border-0"
       allowfullscreen
     ></iframe>
-    <!-- HTML mode - SECURITY: homeContent is admin-only setting, XSS risk is acceptable -->
-    <div v-else v-html="homeContent"></div>
+    <!-- Existing HTML home pages keep their full-page layout. -->
+    <div v-else-if="isHomeContentHtml" v-html="homeContent"></div>
+    <main v-else class="min-h-screen bg-gray-50 px-4 py-10 text-gray-900 dark:bg-dark-950 dark:text-white sm:px-6">
+      <div class="mx-auto max-w-3xl">
+        <nav class="mb-8 flex justify-end">
+          <RouterLink
+            to="/login"
+            class="inline-flex min-h-10 items-center justify-center rounded bg-primary-700 px-4 py-2 text-sm font-semibold text-white hover:bg-primary-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-700"
+          >
+            {{ t('home.login') }}
+          </RouterLink>
+        </nav>
+        <article class="home-markdown-content" v-html="renderedHomeContent"></article>
+      </div>
+    </main>
   </div>
 
   <!-- Compact Home Page -->
@@ -495,6 +508,8 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
+import { marked } from 'marked'
+import DOMPurify from 'dompurify'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore, useAppStore } from '@/stores'
 import LocaleSwitcher from '@/components/common/LocaleSwitcher.vue'
@@ -522,6 +537,10 @@ const isHomeContentUrl = computed(() => {
   const content = homeContent.value.trim()
   return content.startsWith('http://') || content.startsWith('https://')
 })
+const isHomeContentHtml = computed(() => /^\s*<[a-z][\s\S]*>/i.test(homeContent.value))
+const renderedHomeContent = computed(() => DOMPurify.sanitize(
+  marked.parse(homeContent.value, { async: false, gfm: true, breaks: false }),
+))
 
 // Theme
 const isDark = ref(document.documentElement.classList.contains('dark'))
@@ -741,4 +760,24 @@ onMounted(() => {
     0 0 40px rgba(20, 184, 166, 0.1),
     inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
+.home-markdown-content {
+  @apply min-w-0 break-words text-base leading-7;
+}
+
+.home-markdown-content :deep(h1) { @apply mb-5 text-3xl font-bold; }
+.home-markdown-content :deep(h2) { @apply mb-3 mt-8 text-2xl font-bold; }
+.home-markdown-content :deep(h3) { @apply mb-3 mt-6 text-xl font-semibold; }
+.home-markdown-content :deep(p) { @apply mb-4; }
+.home-markdown-content :deep(ul) { @apply mb-4 list-disc pl-6; }
+.home-markdown-content :deep(ol) { @apply mb-4 list-decimal pl-6; }
+.home-markdown-content :deep(blockquote) { @apply my-5 border-l-4 border-gray-300 pl-4 text-gray-600 dark:border-dark-600 dark:text-dark-300; }
+.home-markdown-content :deep(a) { @apply text-primary-700 underline dark:text-primary-300; }
+.home-markdown-content :deep(pre) { @apply my-5 overflow-x-auto rounded bg-gray-950 p-4 text-sm text-gray-100; }
+.home-markdown-content :deep(pre code) { @apply bg-transparent p-0 text-inherit; }
+.home-markdown-content :deep(code) { @apply rounded bg-gray-200 px-1 py-0.5 font-mono text-sm dark:bg-dark-800; }
+.home-markdown-content :deep(table) { @apply my-5 block w-full overflow-x-auto border-collapse; }
+.home-markdown-content :deep(th) { @apply border border-gray-300 bg-gray-100 px-3 py-2 text-left dark:border-dark-600 dark:bg-dark-800; }
+.home-markdown-content :deep(td) { @apply border border-gray-300 px-3 py-2 dark:border-dark-600; }
+.home-markdown-content :deep(hr) { @apply my-7 border-gray-300 dark:border-dark-700; }
+.home-markdown-content :deep(img) { @apply my-5 h-auto max-w-full; }
 </style>

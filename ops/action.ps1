@@ -1,6 +1,6 @@
 param(
     [Parameter(Mandatory)]
-    [ValidateSet('Fetch', 'Deploy', 'Sync', 'StartDev', 'StartProd', 'StartAll', 'Schedule')]
+    [ValidateSet('Fetch', 'Deploy', 'Sync', 'StartDev', 'StartProd', 'StartAll', 'Schedule', 'BuildLocal')]
     [string]$Action
 )
 $ErrorActionPreference = 'Stop'
@@ -68,6 +68,24 @@ function Start-LocalProduction {
 
 try {
     switch ($Action) {
+        BuildLocal {
+            $pnpm = (Get-Command pnpm.cmd -ErrorAction Stop).Source
+            $go = 'G:\Programer\go\bin\go.exe'
+            if (-not (Test-Path -LiteralPath $go)) { throw "Go compiler not found: $go" }
+            $buildDir = Join-Path $script:SettingsDir 'builds'
+            New-Item -ItemType Directory -Path $buildDir -Force | Out-Null
+            $output = Join-Path $buildDir ("sub2api-{0}.exe" -f (Get-Date -Format 'yyyyMMdd-HHmmss'))
+            if (Test-Path -LiteralPath $output) { throw "Build output already exists: $output" }
+            Write-Host '[1/2] Building frontend...'
+            Push-Location (Join-Path $script:RepoRoot 'frontend')
+            try { Invoke-Checked $pnpm @('run', 'build') } finally { Pop-Location }
+            Write-Host '[2/2] Building embedded Windows executable...'
+            Push-Location $script:BackendDir
+            try { Invoke-Checked $go @('build', '-tags', 'embed', '-trimpath', '-o', $output, './cmd/server') } finally { Pop-Location }
+            if (-not (Test-Path -LiteralPath $output)) { throw "Build output missing: $output" }
+            Write-Host "Build complete: $output"
+            Write-Host 'Running instances and backend/sub2api.exe were not changed.'
+        }
         Fetch {
             Invoke-Checked 'git.exe' @('-C', $script:RepoRoot, 'fetch', 'origin')
             Write-Host 'Official changes fetched. Merge and test them yourself before deploying.'

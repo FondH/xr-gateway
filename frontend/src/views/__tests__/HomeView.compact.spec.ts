@@ -87,6 +87,19 @@ describe('HomeView compact mode', () => {
     expect(wrapper.find('[data-testid="compact-home"]').exists()).toBe(false)
   })
 
+  it('renders Markdown home content as formatted, sanitized HTML', () => {
+    const wrapper = mountHome({
+      home_content: '# Gateway\n\n**One entrance**\n\n| Model | Status |\n| --- | --- |\n| Codex | Online |\n\n```text\nYour App\n```\n\n<script>alert(1)</script>',
+    })
+
+    expect(wrapper.get('.home-markdown-content h1').text()).toBe('Gateway')
+    expect(wrapper.get('.home-markdown-content strong').text()).toBe('One entrance')
+    expect(wrapper.get('.home-markdown-content table td').text()).toBe('Codex')
+    expect(wrapper.get('.home-markdown-content pre code').text()).toBe('Your App')
+    expect(wrapper.find('.home-markdown-content script').exists()).toBe(false)
+    expect(wrapper.findComponent(RouterLinkStub).props('to')).toBe('/login')
+  })
+
   it('renders custom URL content ahead of compact mode', () => {
     const wrapper = mountHome({
       compact_home_enabled: true,

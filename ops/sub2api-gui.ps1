@@ -94,7 +94,8 @@ function Start-Action([string]$Name, [string]$Prompt, [bool]$Elevated = $false) 
     try {
         $pwsh = (Get-Command pwsh.exe).Source
         $actionPath = Join-Path $PSScriptRoot 'action.ps1'
-        $arguments = "-NoProfile -ExecutionPolicy Bypass -File `"$actionPath`" -Action $Name"
+        $stayOpen = if ($Name -eq 'BuildLocal') { '-NoExit ' } else { '' }
+        $arguments = "-NoProfile ${stayOpen}-ExecutionPolicy Bypass -File `"$actionPath`" -Action $Name"
         if ($Elevated) {
             Start-Process -FilePath $pwsh -ArgumentList $arguments -Verb RunAs | Out-Null
         } else {
@@ -127,7 +128,11 @@ $operations.Controls.Add((New-Button '部署并启动 Linux' 222 390 250 {
 $operations.Controls.Add((New-Button '启动全部' 486 390 200 {
     Start-Action 'StartAll' '将部署并启动 Linux，确认健康后启动本机 127.0.0.1:18272。现有 18271 服务不受影响。继续吗？'
 }))
-$operations.Controls.Add((New-Label '本机 18271 的现有进程不会被这些操作停止。' 28 465 740))
+$operations.Controls.Add((New-Button '编译本机 EXE' 28 448 200 {
+    Start-Action 'BuildLocal' '将编译前端和本机 EXE 到独立文件；不会停止服务或替换正在使用的程序。继续吗？'
+}))
+$operations.Controls.Add((New-Label '编译产物保存在 C:\ProgramData\Sub2API\builds；需手动切换后才会生效。' 242 453 590))
+$operations.Controls.Add((New-Label '本机 18271 的现有进程不会被这些操作停止。' 28 510 740))
 
 $fieldSpecs = @(
     @('Linux 地址', 'host', '192.168.31.186'),
